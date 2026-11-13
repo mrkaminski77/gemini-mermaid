@@ -1,6 +1,6 @@
 {
   "name": "gemini-mermaid",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Firefox extension that identifies and renders Mermaid diagrams in the Google Gemini web app.",
   "type": "module",
   "scripts": {
