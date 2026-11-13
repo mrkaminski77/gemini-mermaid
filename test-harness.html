@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gemini Mermaid Renderer - Local Test Harness</title>
+  <link rel="stylesheet" href="dist/styles.css" />
+  <style>
+    body {
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      background: #f8f9fa;
+      color: #1f1f1f;
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 20px;
+      transition: background 0.2s, color 0.2s;
+    }
+    body.dark-theme {
+      background: #131314;
+      color: #e3e3e3;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .controls button {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #c4c7c5;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    body.dark-theme .controls button {
+      background: #282a2c;
+      color: #e3e3e3;
+      border-color: #444746;
+    }
+    code-block {
+      display: block;
+      margin: 20px 0;
+      border-radius: 12px;
+      background: #f0f4f9;
+      padding: 12px;
+    }
+    body.dark-theme code-block {
+      background: #1e1f20;
+    }
+    .code-block-decoration {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      opacity: 0.75;
+    }
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      padding: 10px;
+      background: rgba(0,0,0,0.04);
+      border-radius: 8px;
+    }
+    body.dark-theme pre {
+      background: rgba(255,255,255,0.05);
+    }
+  </style>
+</head>
+<body>
+  <h1>Gemini Mermaid Renderer — Local Test Harness</h1>
+  <div class="controls">
+    <button id="toggle-theme">Toggle Dark / Light Theme</button>
+    <button id="simulate-stream">Simulate Streaming Diagram</button>
+  </div>
+
+  <h2>1. Explicit Mermaid Block</h2>
+  <code-block>
+    <div class="code-block">
+      <div class="code-block-decoration"><span>mermaid</span></div>
+      <div class="formatted-code-block-internal-container">
+        <pre><code class="language-mermaid">flowchart TD
+  User([User]) --> Gemini[Gemini Web App]
+  Gemini --> Observer[MutationObserver]
+  Observer --> Parser{Valid Mermaid?}
+  Parser -- Yes --> Render[Render Interactive SVG]
+  Parser -- No --> Code[Keep Code View]</code></pre>
+      </div>
+    </div>
+  </code-block>
+
+  <h2>2. Unlabeled Sequence Diagram (Keyword Auto-Detection)</h2>
+  <code-block>
+    <div class="code-block">
+      <div class="code-block-decoration"><span>Code</span></div>
+      <div class="formatted-code-block-internal-container">
+        <pre><code>sequenceDiagram
+  participant U as User
+  participant E as Extension
+  participant M as Mermaid Engine
+  U->>E: Load Gemini Chat
+  E->>M: parse() & render()
+  M-->>E: SVG Output
+  E-->>U: Interactive Diagram Card</code></pre>
+      </div>
+    </div>
+  </code-block>
+
+  <h2>3. Non-Mermaid Python Block (Should Be Ignored)</h2>
+  <code-block>
+    <div class="code-block">
+      <div class="code-block-decoration"><span>Python</span></div>
+      <div class="formatted-code-block-internal-container">
+        <pre><code class="language-python">def greet(name):
+    return f"Hello, {name}!"</code></pre>
+      </div>
+    </div>
+  </code-block>
+
+  <div id="stream-container"></div>
+
+  <script src="dist/content.js"></script>
+  <script>
+    document.getElementById('toggle-theme').addEventListener('click', () => {
+      document.body.classList.toggle('dark-theme');
+    });
+
+    document.getElementById('simulate-stream').addEventListener('click', () => {
+      const target = document.getElementById('stream-container');
+      target.innerHTML = `
+        <h2>4. Streamed ER Diagram</h2>
+        <code-block>
+          <div class="code-block-decoration"><span>mermaid</span></div>
+          <pre><code class="language-mermaid"></code></pre>
+        </code-block>
+      `;
+      const codeEl = target.querySelector('code');
+      const chunks = [
+        'erDiagram\n',
+        '  USER ||--o{ ',
+        'CONVERSATION : starts\n',
+        '  CONVERSATION ||--|{ MESSAGE : contains'
+      ];
+      let i = 0;
+      const timer = setInterval(() => {
+        if (i >= chunks.length) {
+          clearInterval(timer);
+          return;
+        }
+        codeEl.textContent += chunks[i];
+        i += 1;
+      }, 450);
+    });
+  </script>
+</body>
+</html>
