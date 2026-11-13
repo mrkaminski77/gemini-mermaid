@@ -30,8 +30,9 @@ This bundles the content script and assets into `dist/`.
 - `npm run build` — Bundle extension into `dist/`
 - `npm run watch` — Watch `src/` and rebuild automatically on changes
 - `npm test` — Run unit and DOM integration tests with Vitest
-- `npm run lint` — Validate `dist/` with `web-ext lint`
+- `npm run lint` — Validate `dist/` with `web-ext lint --self-hosted`
 - `npm run package` — Build a distributable `.zip` archive in `web-ext-artifacts/`
+- `npm run release` — Run tests, build, lint, package source, sign an unlisted `.xpi` via `web-ext sign` (using `AMO_JWT_ISSUER` / `AMO_JWT_SECRET`), and update `updates.json` (`--publish` also creates the GitHub release via `gh`)
 
 ## Loading in Firefox
 

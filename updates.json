@@ -1,0 +1,18 @@
+{
+  "addons": {
+    "gemini-mermaid@mrkaminski77.github.io": {
+      "updates": [
+        {
+          "version": "1.0.0",
+          "update_link": "https://github.com/mrkaminski77/gemini-mermaid/releases/download/v1.0.0/8201af48c77f494cad80-1.0.0.xpi",
+          "update_hash": "sha256:af542d6484b5875109c8d5a895a7f924f806859273a425464052bc2761d618a0",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "115.0"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
