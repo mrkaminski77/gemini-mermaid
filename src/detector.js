@@ -13,8 +13,21 @@ const HEADER_SELECTORS = [
   '.code-header'
 ].join(', ');
 
-const CONTAINER_SELECTORS = 'code-block, .code-block, .code-block-container, pre';
-const OUTER_CONTAINER_SELECTORS = 'code-block, .code-block, .code-block-container';
+const CONTAINER_SELECTORS = [
+  'code-block',
+  '.code-block',
+  '.code-block-container',
+  '.formatted-code-block-internal-container',
+  'pre',
+  'code[data-test-id="code-content"]',
+  'code.code-container'
+].join(', ');
+const OUTER_CONTAINER_SELECTORS = [
+  'code-block',
+  '.code-block',
+  '.code-block-container',
+  '.formatted-code-block-internal-container'
+].join(', ');
 
 // Language classes where content may still be a Mermaid diagram (e.g. Gemini "Code snippet" or "markdown")
 const AUTO_DETECT_LANGUAGES = new Set([

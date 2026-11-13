@@ -192,4 +192,25 @@ describe('Interactive UI card & observer', () => {
     expect(controller.state.mode).toBe('code');
     expect(controller.wrapper.querySelector('.gm-status-badge').textContent).toContain('Render error');
   });
+
+  it('mounts and toggles standalone <code data-test-id="code-content"> without <pre>', () => {
+    document.body.innerHTML = `
+      <div class="snippet-wrapper">
+        <code role="text" data-test-id="code-content" class="code-container formatted">flowchart TD\n  A --> B</code>
+      </div>
+    `;
+
+    const codeEl = document.querySelector('code[data-test-id="code-content"]');
+    const controller = getOrCreateCardController(codeEl);
+    controller.showDiagram(createMockSvg(), false);
+
+    expect(controller.state.mode).toBe('diagram');
+    expect(codeEl.classList.contains('gm-code-hidden')).toBe(true);
+    expect(codeEl.previousElementSibling).toBe(controller.wrapper);
+
+    const codeTab = controller.wrapper.querySelectorAll('.gm-tab-btn')[1];
+    codeTab.click();
+    expect(controller.state.mode).toBe('code');
+    expect(codeEl.classList.contains('gm-code-hidden')).toBe(false);
+  });
 });

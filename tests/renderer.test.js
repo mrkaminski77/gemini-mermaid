@@ -42,4 +42,52 @@ describe('renderer utilities & real mermaid parser', () => {
     });
     expect(invalid).toBe(false);
   });
+
+  it('validates the exact Gemini Skeletal Joints flowchart via mermaid.parse()', async () => {
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', htmlLabels: false });
+    const src = `flowchart TD
+    Root[Human Skeletal Joints] --> Structural[Structural Classification<br/>By Tissue Type]
+    Root --> Functional[Functional Classification<br/>By Degree of Movement]
+
+    %% Structural Branch
+    Structural --> Fibrous[Fibrous<br/>Dense Connective Tissue]
+    Structural --> Cartilaginous[Cartilaginous<br/>Hyaline or Fibrocartilage]
+    Structural --> Synovial[Synovial<br/>Fluid-Filled Joint Cavity]
+
+    Fibrous --> Sutures[Sutures<br/>e.g., Cranial bones]
+    Fibrous --> Syndesmoses[Syndesmoses<br/>e.g., Tibia-Fibula shaft]
+    Fibrous --> Gomphoses[Gomphoses<br/>e.g., Tooth in socket]
+
+    Cartilaginous --> Synchondroses[Synchondroses - Hyaline<br/>e.g., Epiphyseal plates, 1st rib-sternum]
+    Cartilaginous --> Symphyses[Symphyses - Fibrocartilage<br/>e.g., Pubic symphysis, Intervertebral discs,<br/>Sacrococcygeal joint]
+
+    Synovial --> Plane[Plane / Gliding<br/>e.g., Intercarpal, Intertarsal, Facet joints]
+    Synovial --> Hinge[Hinge<br/>e.g., Elbow, Knee, Ankle]
+    Synovial --> Pivot[Pivot<br/>e.g., Atlantoaxial C1-C2]
+    Synovial --> Condyloid[Condyloid / Ellipsoid<br/>e.g., Wrist radiocarpal, Knuckles]
+    Synovial --> Saddle[Saddle<br/>e.g., Thumb carpometacarpal]
+    Synovial --> BallSocket[Ball-and-Socket<br/>e.g., Shoulder, Hip]
+
+    %% Functional Branch
+    Functional --> Synarthrosis[Synarthrosis<br/>Immovable]
+    Functional --> Amphiarthrosis[Amphiarthrosis<br/>Slightly Movable]
+    Functional --> Diarthrosis[Diarthrosis<br/>Freely Movable]
+
+    %% Cross-links showing functional mapping
+    Sutures -.-> Synarthrosis
+    Gomphoses -.-> Synarthrosis
+    Synchondroses -.-> Synarthrosis
+
+    Syndesmoses -.-> Amphiarthrosis
+    Symphyses -.-> Amphiarthrosis
+
+    Synovial -.-> Diarthrosis
+
+    %% Highlighting joints prone to fusion/ossification from previous topic
+    classDef fusionProne fill:#f9f,stroke:#333,stroke-width:2px,color:#000;
+    class Synchondroses,Symphyses,Plane fusionProne;`;
+
+    const result = await mermaid.parse(src, { suppressErrors: true });
+    expect(result).not.toBe(false);
+  });
 });

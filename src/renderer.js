@@ -25,6 +25,18 @@ function getTrustedHtmlPolicy() {
     }
   }
 
+  if (typeof globalThis !== 'undefined' && globalThis.trustedTypes?.createPolicy) {
+    try {
+      trustedHtmlPolicy = globalThis.trustedTypes.createPolicy('gemini-mermaid', {
+        createHTML: (value) => String(value)
+      });
+      return trustedHtmlPolicy;
+    } catch {
+      trustedHtmlPolicy = false;
+      return false;
+    }
+  }
+
   trustedHtmlPolicy = false;
   return false;
 }
@@ -149,16 +161,20 @@ export async function renderMermaidSource(source, options = {}) {
   ensureMermaidInitialized(dark);
 
   try {
-    const parseResult = await mermaid.parse(source, { suppressErrors: true });
+    const parseResult = await mermaid.parse(source);
     if (parseResult === false) {
       return { valid: false, dark, stage: 'parse', error: 'Syntax incomplete or invalid' };
     }
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const isSyntaxError =
+      (err && typeof err === 'object' && 'hash' in err) ||
+      /parse error|syntax error|no diagram type detected|lexical error/i.test(message);
     return {
       valid: false,
       dark,
-      stage: 'parse',
-      error: err instanceof Error ? err.message : String(err)
+      stage: isSyntaxError ? 'parse' : 'render',
+      error: message
     };
   }
 

@@ -5,6 +5,7 @@ function bootstrap() {
     return;
   }
 
+  console.debug('[gemini-mermaid] Initializing observer on', window.location.href);
   const observer = createMermaidObserver({
     doc: document,
     root: document.body

@@ -25,7 +25,7 @@ function clamp(value, min, max) {
  * @returns {Element|null}
  */
 function findCodeTarget(container) {
-  if (container.matches('pre')) {
+  if (container.matches('pre, code')) {
     return container;
   }
   const internal = container.querySelector(
@@ -34,7 +34,7 @@ function findCodeTarget(container) {
   if (internal) {
     return internal;
   }
-  return container.querySelector('pre');
+  return container.querySelector('pre, code');
 }
 
 /**
@@ -122,8 +122,8 @@ export function getOrCreateCardController(container) {
 
   wrapper.append(toolbar, viewport);
 
-  // Mount wrapper right before the code target (or before standalone <pre>)
-  if (container.matches('pre')) {
+  // Mount wrapper right before the code target (or before standalone <pre>/<code>)
+  if (container.matches('pre, code')) {
     if (container.parentNode) {
       container.parentNode.insertBefore(wrapper, container);
     }

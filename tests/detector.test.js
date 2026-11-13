@@ -145,4 +145,22 @@ describe('detectMermaidBlock & findCodeBlockContainers', () => {
     expect(result.isMermaid).toBe(true);
     expect(result.source).toBe('flowchart TD\n  A --> B');
   });
+
+  it('detects standalone Gemini <code data-test-id="code-content" class="code-container formatted"> without <pre>', () => {
+    document.body.innerHTML = `
+      <div class="snippet-wrapper">
+        <code _ngcontent-ng-c3956100380="" role="text" data-test-id="code-content" class="code-container formatted ng-tns-c3956100380-15">flowchart TD
+    Root[Human Skeletal Joints] --&gt; Structural[Structural Classification&lt;br/&gt;By Tissue Type]</code>
+      </div>
+    `;
+
+    const containers = findCodeBlockContainers(document);
+    expect(containers).toHaveLength(1);
+    expect(containers[0].tagName).toBe('CODE');
+
+    const result = detectMermaidBlock(containers[0]);
+    expect(result.isMermaid).toBe(true);
+    expect(result.source).toContain('flowchart TD');
+    expect(result.source).toContain('Root[Human Skeletal Joints] --> Structural[Structural Classification<br/>By Tissue Type]');
+  });
 });

@@ -10,6 +10,9 @@
   "permissions": [
     "clipboardWrite"
   ],
+  "host_permissions": [
+    "https://gemini.google.com/*"
+  ],
   "content_scripts": [
     {
       "matches": [
