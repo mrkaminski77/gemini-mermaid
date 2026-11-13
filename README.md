@@ -34,6 +34,11 @@ This bundles the content script and assets into `dist/`.
 - `npm run package` — Build a distributable `.zip` archive in `web-ext-artifacts/`
 - `npm run release` — Run tests, build, lint, package source, sign an unlisted `.xpi` via `web-ext sign` (using `AMO_JWT_ISSUER` / `AMO_JWT_SECRET`), and update `updates.json` (`--publish` also creates the GitHub release via `gh`)
 
+## Automated Releases (GitHub Actions)
+
+- [CI](.github/workflows/ci.yml) runs `npm test`, `npm run build`, and `npm run lint` on pushes and pull requests to `main`.
+- [Release Signed XPI](.github/workflows/release.yml) runs on pushes to `main` touching extension source/manifest/build files (or manually via `workflow_dispatch`). If the version in `manifest.json` is already released, it auto-bumps the patch version, signs an unlisted `.xpi` on AMO using repository secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET`, updates `updates.json`, commits with `[skip ci]`, and publishes a GitHub Release.
+
 ## Loading in Firefox
 
 1. Run `npm run build` (and optionally `npm run package`).

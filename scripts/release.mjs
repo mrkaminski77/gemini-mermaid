@@ -7,10 +7,14 @@ const REPO_SLUG = 'mrkaminski77/gemini-mermaid';
 const rootDir = resolve('.');
 const artifactsDir = resolve(rootDir, 'web-ext-artifacts');
 const updatesPath = resolve(rootDir, 'updates.json');
+const manifestPath = resolve(rootDir, 'manifest.json');
+const pkgPath = resolve(rootDir, 'package.json');
 
-const args = new Set(process.argv.slice(2));
+const rawArgs = process.argv.slice(2);
+const args = new Set(rawArgs);
 const shouldPublish = args.has('--publish');
 const signOnly = args.has('--sign-only');
+const bumpArg = rawArgs.find((a) => a.startsWith('--bump='))?.split('=')[1] || '';
 
 function run(cmd, cmdArgs, options = {}) {
   console.log(`> ${cmd} ${cmdArgs.join(' ')}`);
@@ -21,9 +25,79 @@ function run(cmd, cmdArgs, options = {}) {
   });
 }
 
-function readManifest() {
-  const raw = readFileSync(resolve(rootDir, 'manifest.json'), 'utf8');
-  return JSON.parse(raw);
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, 'utf8'));
+}
+
+function writeJson(filePath, data) {
+  writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
+
+function gitTagExists(tag) {
+  try {
+    const out = execFileSync('git', ['tag', '-l', tag], {
+      cwd: rootDir,
+      encoding: 'utf8'
+    }).trim();
+    return out === tag;
+  } catch {
+    return false;
+  }
+}
+
+function incrementSemver(version, level) {
+  const parts = version.split('.').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) {
+    throw new Error(`Unsupported semver format in manifest.json: ${version}`);
+  }
+  let [major, minor, patch] = parts;
+  if (level === 'major') {
+    major += 1;
+    minor = 0;
+    patch = 0;
+  } else if (level === 'minor') {
+    minor += 1;
+    patch = 0;
+  } else {
+    patch += 1;
+  }
+  return `${major}.${minor}.${patch}`;
+}
+
+function maybeBumpVersion(manifest) {
+  if (!bumpArg || bumpArg === 'none') {
+    return manifest.version;
+  }
+
+  let level = bumpArg;
+  if (level === 'auto') {
+    if (!gitTagExists(`v${manifest.version}`)) {
+      return manifest.version;
+    }
+    level = 'patch';
+  }
+
+  const nextVersion = incrementSemver(manifest.version, level);
+  console.log(`Bumping version: ${manifest.version} -> ${nextVersion}`);
+
+  manifest.version = nextVersion;
+  writeJson(manifestPath, manifest);
+
+  const pkg = readJson(pkgPath);
+  pkg.version = nextVersion;
+  writeJson(pkgPath, pkg);
+
+  const lockPath = resolve(rootDir, 'package-lock.json');
+  if (existsSync(lockPath)) {
+    const lock = readJson(lockPath);
+    lock.version = nextVersion;
+    if (lock.packages?.['']) {
+      lock.packages[''].version = nextVersion;
+    }
+    writeJson(lockPath, lock);
+  }
+
+  return nextVersion;
 }
 
 function buildSourceArchive(version) {
@@ -74,7 +148,7 @@ function updateManifestJsonFile(addonId, version, minVersion, xpiFilename, sha25
   let existing = { addons: {} };
   if (existsSync(updatesPath)) {
     try {
-      existing = JSON.parse(readFileSync(updatesPath, 'utf8'));
+      existing = readJson(updatesPath);
     } catch {
       existing = { addons: {} };
     }
@@ -103,7 +177,7 @@ function updateManifestJsonFile(addonId, version, minVersion, xpiFilename, sha25
   };
 
   existing.addons[addonId].updates = [...prevUpdates, nextEntry];
-  writeFileSync(updatesPath, `${JSON.stringify(existing, null, 2)}\n`, 'utf8');
+  writeJson(updatesPath, existing);
   console.log(`Updated ${updatesPath} for ${addonId} v${version}`);
 }
 
@@ -116,8 +190,8 @@ function main() {
     process.exit(1);
   }
 
-  const manifest = readManifest();
-  const version = manifest.version;
+  const manifest = readJson(manifestPath);
+  const version = maybeBumpVersion(manifest);
   const gecko = manifest.browser_specific_settings?.gecko || {};
   const addonId = gecko.id;
   const minVersion = gecko.strict_min_version || '115.0';
@@ -169,6 +243,7 @@ function main() {
   updateManifestJsonFile(addonId, version, minVersion, xpi.name, sha256);
 
   console.log(`\nRelease artifacts ready:`);
+  console.log(`  Version: ${version}`);
   console.log(`  Signed XPI: ${xpi.path}`);
   console.log(`  Source ZIP: ${sourceZipPath}`);
   console.log(`  Updates JSON: ${updatesPath}`);

@@ -1,0 +1,83 @@
+name: Release Signed XPI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'icons/**'
+      - 'manifest.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'build.mjs'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump mode (auto bumps patch if tag already exists)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+          - none
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build, sign XPI via AMO, and update updates.json
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          BUMP="${{ github.event.inputs.bump || 'auto' }}"
+          node scripts/release.mjs --bump="$BUMP"
+
+      - name: Commit bumped version and updates.json
+        run: |
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8')).version")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json package.json package-lock.json updates.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): v${VERSION} [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          XPI_PATH=$(ls -t web-ext-artifacts/*.xpi | head -n 1)
+          gh release create "v${VERSION}" "$XPI_PATH" updates.json \
+            --repo "${{ github.repository }}" \
+            --target "$(git rev-parse HEAD)" \
+            --title "Gemini Mermaid Renderer v${VERSION}" \
+            --generate-notes
