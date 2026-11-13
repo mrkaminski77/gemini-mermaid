@@ -21,6 +21,16 @@
               "strict_min_version": "115.0"
             }
           }
+        },
+        {
+          "version": "1.0.2",
+          "update_link": "https://github.com/mrkaminski77/gemini-mermaid/releases/download/v1.0.2/8201af48c77f494cad80-1.0.2.xpi",
+          "update_hash": "sha256:fd7cb31c7c4d649f97b364c5721d69e23c96b0c9f205b767f87c47c998c9d1ad",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "115.0"
+            }
+          }
         }
       ]
     }
