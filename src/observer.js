@@ -79,6 +79,10 @@ export function createMermaidObserver(options = {}) {
     if (result.valid && result.svgElement) {
       const controller = getOrCreateCardController(container);
       controller.showDiagram(result.svgElement, dark);
+    } else if (result.stage === 'render') {
+      console.warn('[gemini-mermaid] Failed to render Mermaid diagram:', result.error);
+      const controller = getOrCreateCardController(container);
+      controller.showPendingOrError('Render error (see console)', dark);
     } else if (detection.explicit) {
       // Explicit mermaid blocks stay in Code view with a subtle status indicator while streaming or invalid
       const controller = getOrCreateCardController(container);

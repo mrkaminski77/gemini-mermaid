@@ -6,10 +6,31 @@ const HEADER_SELECTORS = [
   '.code-block-decoration span',
   '.code-block-decoration',
   '.header-formatted',
+  '.code-block-header span',
+  '.code-block-header',
   '[data-test-id="code-block-header"]',
   '.code-header span',
   '.code-header'
 ].join(', ');
+
+const CONTAINER_SELECTORS = 'code-block, .code-block, .code-block-container, pre';
+const OUTER_CONTAINER_SELECTORS = 'code-block, .code-block, .code-block-container';
+
+// Language classes where content may still be a Mermaid diagram (e.g. Gemini "Code snippet" or "markdown")
+const AUTO_DETECT_LANGUAGES = new Set([
+  'mermaid',
+  'plaintext',
+  'text',
+  'txt',
+  'none',
+  'markdown',
+  'md',
+  'code',
+  'unknown',
+  'auto'
+]);
+
+const BLOCK_LINE_TAGS = new Set(['DIV', 'P', 'LI', 'TR']);
 
 const MERMAID_KEYWORDS = new RegExp(
   [
@@ -50,6 +71,21 @@ export function stripLeadingMetadata(source) {
   }
 
   return lines.slice(index).join('\n').trimStart();
+}
+
+/**
+ * Unwraps a single top-level fenced ```mermaid block when Gemini emits it inside a markdown snippet.
+ *
+ * @param {string} source
+ * @returns {{ unwrapped: string, wasFencedMermaid: boolean }}
+ */
+export function unwrapSingleMermaidFence(source) {
+  const trimmed = (source || '').trim();
+  const match = trimmed.match(/^```mermaid[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
+  if (match) {
+    return { unwrapped: match[1].trim(), wasFencedMermaid: true };
+  }
+  return { unwrapped: trimmed, wasFencedMermaid: false };
 }
 
 /**
@@ -140,6 +176,47 @@ export function getCodeElement(container) {
 }
 
 /**
+ * Extracts text from an element while preserving line breaks from <br> and block wrappers.
+ *
+ * @param {Node} node
+ * @returns {string}
+ */
+function extractTextWithNewlines(node) {
+  if (!node) return '';
+  if (node.nodeType === 3) {
+    return node.nodeValue || '';
+  }
+  if (node.nodeType !== 1) {
+    return '';
+  }
+
+  const el = /** @type {Element} */ (node);
+  if (el.classList?.contains('gm-mermaid-wrapper')) {
+    return '';
+  }
+  if (el.tagName === 'BR') {
+    return '\n';
+  }
+
+  let out = '';
+  for (const child of el.childNodes) {
+    const chunk = extractTextWithNewlines(child);
+    if (!chunk) continue;
+    if (
+      child.nodeType === 1 &&
+      BLOCK_LINE_TAGS.has(/** @type {Element} */ (child).tagName) &&
+      out.length > 0 &&
+      !out.endsWith('\n')
+    ) {
+      out += '\n';
+    }
+    out += chunk;
+  }
+
+  return out;
+}
+
+/**
  * Extracts raw diagram source text from a code block container.
  *
  * @param {Element} container
@@ -148,7 +225,7 @@ export function getCodeElement(container) {
 export function extractCodeText(container) {
   const codeEl = getCodeElement(container);
   if (!codeEl) return '';
-  return (codeEl.textContent || '').replace(/\u00a0/g, ' ').trim();
+  return extractTextWithNewlines(codeEl).replace(/\u00a0/g, ' ').trim();
 }
 
 /**
@@ -163,23 +240,24 @@ export function detectMermaidBlock(container) {
     return { isMermaid: false, explicit: false, source: '' };
   }
 
-  const source = extractCodeText(container);
-  if (!source) {
+  const rawSource = extractCodeText(container);
+  if (!rawSource) {
     return { isMermaid: false, explicit: false, source: '' };
   }
 
-  const explicit = hasExplicitMermaidLabel(container, codeEl);
+  const { unwrapped: source, wasFencedMermaid } = unwrapSingleMermaidFence(rawSource);
+
+  const explicit = hasExplicitMermaidLabel(container, codeEl) || wasFencedMermaid;
   if (explicit) {
     return { isMermaid: true, explicit: true, source };
   }
 
-  // Only auto-detect unlabeled blocks or generic/plaintext blocks; do not hijack
-  // blocks explicitly labeled as another language (e.g. python, markdown, html).
+  // Auto-detect unlabeled blocks and generic/markdown blocks; skip explicit non-diagram languages.
   const className = codeEl.getAttribute('class') || '';
   const langMatch = className.match(/\blanguage-([a-z0-9_-]+)/i);
   if (langMatch) {
     const lang = langMatch[1].toLowerCase();
-    if (lang !== 'mermaid' && lang !== 'plaintext' && lang !== 'text' && lang !== 'none') {
+    if (!AUTO_DETECT_LANGUAGES.has(lang)) {
       return { isMermaid: false, explicit: false, source };
     }
   }
@@ -200,13 +278,13 @@ export function normalizeCodeBlockContainer(el) {
     return null;
   }
 
-  let current = el.closest('code-block, .code-block, pre');
+  let current = el.closest(CONTAINER_SELECTORS);
   if (!current || current.closest('.gm-mermaid-wrapper')) {
     return null;
   }
 
   while (current.parentElement) {
-    const outer = current.parentElement.closest('code-block, .code-block');
+    const outer = current.parentElement.closest(OUTER_CONTAINER_SELECTORS);
     if (!outer || outer.closest('.gm-mermaid-wrapper')) {
       break;
     }
@@ -228,7 +306,7 @@ export function findCodeBlockContainers(root = document) {
     return [];
   }
 
-  const candidates = root.querySelectorAll('code-block, .code-block, pre');
+  const candidates = root.querySelectorAll(CONTAINER_SELECTORS);
   const seen = new Set();
   const containers = [];
 

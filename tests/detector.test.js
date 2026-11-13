@@ -97,18 +97,52 @@ describe('detectMermaidBlock & findCodeBlockContainers', () => {
     expect(result.explicit).toBe(false);
   });
 
-  it('ignores non-Mermaid languages like python and javascript', () => {
+  it('ignores non-Mermaid languages like python and regular markdown', () => {
     document.body.innerHTML = `
       <code-block>
         <div class="code-block-decoration"><span>Python</span></div>
         <pre><code class="language-python">print("flowchart TD")</code></pre>
       </code-block>
-      <pre><code class="language-markdown">flowchart TD</code></pre>
+      <pre><code class="language-markdown"># Heading\n\nSome markdown text.</code></pre>
     `;
 
     const containers = findCodeBlockContainers(document);
     expect(containers).toHaveLength(2);
     expect(detectMermaidBlock(containers[0]).isMermaid).toBe(false);
     expect(detectMermaidBlock(containers[1]).isMermaid).toBe(false);
+  });
+
+  it('detects Gemini Code snippet labeled language-markdown when starting with flowchart TD', () => {
+    document.body.innerHTML = `
+      <code-block>
+        <div class="code-block">
+          <div class="code-block-decoration"><span>Code snippet</span></div>
+          <div class="formatted-code-block-internal-container">
+            <pre><code class="language-markdown">flowchart TD\n  A[Start] --> B[End]</code></pre>
+          </div>
+        </div>
+      </code-block>
+    `;
+
+    const containers = findCodeBlockContainers(document);
+    expect(containers).toHaveLength(1);
+    const result = detectMermaidBlock(containers[0]);
+    expect(result.isMermaid).toBe(true);
+    expect(result.source).toBe('flowchart TD\n  A[Start] --> B[End]');
+  });
+
+  it('preserves line breaks when code lines are wrapped in div or br elements', () => {
+    document.body.innerHTML = `
+      <div class="code-block-container">
+        <div class="code-block-header"><span>Code snippet</span></div>
+        <pre><code><div>flowchart TD</div><div>  A --> B</div></code></pre>
+      </div>
+    `;
+
+    const containers = findCodeBlockContainers(document);
+    expect(containers).toHaveLength(1);
+    const result = detectMermaidBlock(containers[0]);
+    expect(result.isMermaid).toBe(true);
+    expect(result.source).toBe('flowchart TD\n  A --> B');
   });
 });

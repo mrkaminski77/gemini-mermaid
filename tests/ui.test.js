@@ -161,4 +161,35 @@ describe('Interactive UI card & observer', () => {
     expect(renderFn.mock.calls[1][1].dark).toBe(true);
     expect(getCardController(container).wrapper.classList.contains('gm-dark')).toBe(true);
   });
+
+  it('shows render error status on auto-detected blocks when render stage fails', async () => {
+    document.body.innerHTML = `
+      <code-block>
+        <div class="code-block-decoration"><span>Code snippet</span></div>
+        <pre><code class="language-markdown">flowchart TD\n  A --> B</code></pre>
+      </code-block>
+    `;
+
+    const renderFn = vi.fn().mockResolvedValueOnce({
+      valid: false,
+      dark: false,
+      stage: 'render',
+      error: 'Simulated render failure'
+    });
+
+    const observer = createMermaidObserver({
+      doc: document,
+      root: document.body,
+      debounceMs: 10,
+      renderFn
+    });
+
+    const container = document.querySelector('code-block');
+    await observer.processContainer(container);
+
+    const controller = getCardController(container);
+    expect(controller).not.toBeNull();
+    expect(controller.state.mode).toBe('code');
+    expect(controller.wrapper.querySelector('.gm-status-badge').textContent).toContain('Render error');
+  });
 });

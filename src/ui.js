@@ -28,7 +28,9 @@ function findCodeTarget(container) {
   if (container.matches('pre')) {
     return container;
   }
-  const internal = container.querySelector('.formatted-code-block-internal-container');
+  const internal = container.querySelector(
+    '.formatted-code-block-internal-container, .code-content-wrapper'
+  );
   if (internal) {
     return internal;
   }

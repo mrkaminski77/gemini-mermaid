@@ -2,6 +2,38 @@ import mermaid from 'mermaid';
 
 let renderCounter = 0;
 let lastInitializedTheme = null;
+let trustedHtmlPolicy = null;
+
+/**
+ * Creates or returns a cached Trusted Types policy so internal Mermaid/d3 HTML
+ * helpers succeed on Trusted-Types-enforced pages like gemini.google.com.
+ */
+function getTrustedHtmlPolicy() {
+  if (trustedHtmlPolicy !== null) {
+    return trustedHtmlPolicy;
+  }
+
+  if (typeof window !== 'undefined' && window.trustedTypes?.createPolicy) {
+    try {
+      trustedHtmlPolicy = window.trustedTypes.createPolicy('gemini-mermaid', {
+        createHTML: (value) => String(value)
+      });
+      return trustedHtmlPolicy;
+    } catch {
+      trustedHtmlPolicy = false;
+      return false;
+    }
+  }
+
+  trustedHtmlPolicy = false;
+  return false;
+}
+
+globalThis.__gmTrustedHtml = (value) => {
+  const str = value == null ? '' : String(value);
+  const policy = getTrustedHtmlPolicy();
+  return policy ? policy.createHTML(str) : str;
+};
 
 /**
  * Determines whether the Gemini web app is currently displaying dark mode.
@@ -56,7 +88,8 @@ export function isDarkMode(doc = document) {
 }
 
 /**
- * Initializes Mermaid with strict security and the active theme if needed.
+ * Initializes Mermaid with strict security, pure SVG labels (for Trusted Types
+ * & PNG export compatibility), and the active theme if needed.
  *
  * @param {boolean} dark
  */
@@ -70,6 +103,9 @@ export function ensureMermaidInitialized(dark) {
     startOnLoad: false,
     securityLevel: 'strict',
     theme,
+    htmlLabels: false,
+    flowchart: { htmlLabels: false },
+    class: { htmlLabels: false },
     fontFamily: 'Google Sans, Roboto, Arial, sans-serif'
   });
 
@@ -104,7 +140,7 @@ export function parseSvgMarkup(svgMarkup, doc = document) {
  *
  * @param {string} source
  * @param {{ dark?: boolean, doc?: Document }} [options]
- * @returns {Promise<{ valid: boolean, svgElement?: SVGElement, dark: boolean, error?: string }>}
+ * @returns {Promise<{ valid: boolean, svgElement?: SVGElement, dark: boolean, stage?: 'parse'|'render', error?: string }>}
  */
 export async function renderMermaidSource(source, options = {}) {
   const doc = options.doc || document;
@@ -115,12 +151,13 @@ export async function renderMermaidSource(source, options = {}) {
   try {
     const parseResult = await mermaid.parse(source, { suppressErrors: true });
     if (parseResult === false) {
-      return { valid: false, dark, error: 'Syntax incomplete or invalid' };
+      return { valid: false, dark, stage: 'parse', error: 'Syntax incomplete or invalid' };
     }
   } catch (err) {
     return {
       valid: false,
       dark,
+      stage: 'parse',
       error: err instanceof Error ? err.message : String(err)
     };
   }
@@ -135,6 +172,7 @@ export async function renderMermaidSource(source, options = {}) {
     return {
       valid: false,
       dark,
+      stage: 'render',
       error: err instanceof Error ? err.message : String(err)
     };
   }
